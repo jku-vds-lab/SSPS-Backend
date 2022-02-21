@@ -172,7 +172,7 @@ def change():
                 with tf.device("/cpu:0"):
 
                     gcam = GradCAM(model=mask_model, layerName=selected_layer)#"aggregation_conv")#"center_block1_relu")
-                    cam = gcam.compute_heatmap(array, upsample_size=(384,384),classIdx=1)
+                    cam = gcam.compute_heatmap(array, upsample_size=(384,384))
                 #print(cam.tolist())
                 response = jsonify(cam.tolist())
                 header = response.headers
@@ -209,7 +209,7 @@ def change():
                 with tf.device("/cpu:0"):
 
                     gcam = GradCAM(model=mask_model, layerName=selected_layer)#"aggregation_conv")#"center_block1_relu")
-                    cam = gcam.compute_heatmap(array, upsample_size=(384,384),classIdx=1)
+                    cam = gcam.compute_heatmap(array, upsample_size=(384,384))
                 #print(cam.tolist())
                 response = jsonify(cam.tolist())
                 header = response.headers
