@@ -1,4 +1,5 @@
 from typing import Any
+from unicodedata import category
 from flask import Flask, request, jsonify
 from flask.sessions import NullSession
 import matplotlib
@@ -111,11 +112,18 @@ def form_example():
             # of size (1, 299, 299, 3)
             array = preprocess_input(np.expand_dims(array, axis=0))
             pred = model.predict(array)
-            print(type(pred[0].argmax(-1).tolist()))
-            response = jsonify(pred[0].argmax(-1).tolist())
+            MaxElement = np.amax(pred[0].argmax(-1))
+            Category_Elements = []
+            for element in range(MaxElement):
+                Category_Elements.append('Category '+str(element))
+            dic= {'data': pred[0].argmax(-1).tolist(), 'elements':Category_Elements }
+            #print(Category_Elements)
+            #print(type(pred[0].argmax(-1).tolist()))
+            response = jsonify(dic)
             header = response.headers
             header['Access-Control-Allow-Origin'] = '*'
             return response
+
 
     # otherwise handle the GET request
     response = jsonify(conv_layers)
