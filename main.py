@@ -88,6 +88,7 @@ with tf.device("/cpu:0"):
 # Conv_layer list contains  ['','','','','']   the names of the needed layer and it should be added to the on change API 
 # as it is '' as a string in line 167 and line  196 as layerName variable,  as the used one and the defult is 'final_conv' and it's already in the list. so i don't take index 
 # I take the name itself. 
+pred_list=['background', 'cap','ring', 'stipe', 'gills', 'volva', 'mycelium']
 layer_names=[layer.name for layer in model.layers]
 conv_layers=[]
 word='conv'
@@ -114,8 +115,8 @@ def form_example():
             pred = model.predict(array)
             MaxElement = np.amax(pred[0].argmax(-1))
             Category_Elements = []
-            for element in range(MaxElement):
-                Category_Elements.append('Category '+str(element))
+            for element in range(MaxElement+1):
+                Category_Elements.append(pred_list[element])
             dic= {'data': pred[0].argmax(-1).tolist(), 'elements':Category_Elements }
             #print(Category_Elements)
             #print(type(pred[0].argmax(-1).tolist()))
