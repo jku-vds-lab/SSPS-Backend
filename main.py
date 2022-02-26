@@ -1,3 +1,4 @@
+#import needed libraries 
 from typing import Any
 from unicodedata import category
 from flask import Flask, request, jsonify
@@ -15,7 +16,7 @@ import cv2
 import json
 
 
-
+# Class GradCAM
 # https://github.com/nguyenhoa93/cnn-visualization-keras-tf2/blob/master/src/gradcam.py
 class GradCAM:
     def __init__(self, model, layerName=None):
@@ -47,7 +48,6 @@ class GradCAM:
             (convOuts, preds) = gradModel(inputs)  # preds after softmax
             if classIdx is None:
                 classIdx = np.argmax(preds)
-            #print(preds.shape)
             loss = preds[:, classIdx]
 
         # compute gradients with automatic differentiation
@@ -85,18 +85,22 @@ with tf.device("/cpu:0"):
     model = tf.keras.models.load_model("models/mushroom_seg_model.h5")
     print(model.summary())
 
-# Conv_layer list contains  ['','','','','']   the names of the needed layer and it should be added to the on change API 
-# as it is '' as a string in line 167 and line  196 as layerName variable,  as the used one and the defult is 'final_conv' and it's already in the list. so i don't take index 
-# I take the name itself. 
+# set the names of prediction calsses
+
 pred_list=['background', 'cap','ring', 'stipe', 'gills', 'volva', 'mycelium']
+
+# Get all layers and then getting only conv layers
 layer_names=[layer.name for layer in model.layers]
 conv_layers=[]
 word='conv'
 for layer in layer_names:
     if word in layer:
         conv_layers.append(layer)
+        
 preprocess_input = tf.keras.applications.vgg16.preprocess_input
 pred:any
+
+#start the application 
 app = Flask(__name__)
 @app.route('/form-example', methods=['GET', 'POST'])
 def form_example():
@@ -106,7 +110,7 @@ def form_example():
         image_path= "testimg/" + image.filename
         image.save(image_path)
         with tf.device("/cpu:0"):
-
+# getting the image from the front end and open in locally in the back-end
             img = tf.keras.preprocessing.image.load_img(image_path, target_size=(384, 384))
             array = tf.keras.preprocessing.image.img_to_array(img)
             # We add a dimension to transform our array into a "batch"
@@ -114,12 +118,11 @@ def form_example():
             array = preprocess_input(np.expand_dims(array, axis=0))
             pred = model.predict(array)
             MaxElement = np.amax(pred[0].argmax(-1))
+            #getting the number of predicted classes for the input image to be added in the dropdown and for the heatmap.
             Category_Elements = []
             for element in range(MaxElement+1):
                 Category_Elements.append(pred_list[element])
             dic= {'data': pred[0].argmax(-1).tolist(), 'elements':Category_Elements }
-            #print(Category_Elements)
-            #print(type(pred[0].argmax(-1).tolist()))
             response = jsonify(dic)
             header = response.headers
             header['Access-Control-Allow-Origin'] = '*'
@@ -131,24 +134,26 @@ def form_example():
     header = response.headers
     header['Access-Control-Allow-Origin'] = '*'
     return response
-
+# on change API to uptade Grad-cam
 @app.route('/change', methods=['GET', 'POST'])
 def change():
     # handle the POST request
+    #selection 
     if request.method == 'POST':
         image = request.files['image']
-        #print('dsdsdsaww', request.form.get('item'))            
         xval=request.form.get('xselected')
         yval=request.form.get('yselected')
         selected_layer = request.form.get('item2')
         #selected_layer=conv_layers[layer_index]
         print('xval',xval)
         print('yval',yval)
-
+	# Receving x and y value of the selection 
         if xval or yval :
-            
+            #handling the values
             yval=yval.split(',')
             xval=xval.split(',')
+            
+            #check the length of the x and y values and if x has 2 points or y , then it means it's a square selection.
             if len(xval) > 1  or len(yval) >1 :
                     
 
@@ -166,13 +171,13 @@ def change():
                 # of size (1, 299, 299, 3)
                 array = preprocess_input(np.expand_dims(array, axis=0))
                 pred = model.predict(array)
-                
+                # with 4 points , we should be able to get all the points in between and make them =20 or any other number to make a logical operation and create the mask.
                 seg_mask = model.predict(array)[0].argmax(-1)
                 for i in range(0,len(xarray)):
                     for j in range(0,len(yarray)):
                         seg_mask[xarray[i]][yarray[j]]=20
 
-                
+                # creating the mask with for only the points in the square selection by logical operation == 
                 mask = seg_mask == 20
                 mask = mask[np.newaxis,:,:,np.newaxis]    
 
@@ -180,14 +185,15 @@ def change():
 
                 with tf.device("/cpu:0"):
 
-                    gcam = GradCAM(model=mask_model, layerName=selected_layer)#"aggregation_conv")#"center_block1_relu")
+                    gcam = GradCAM(model=mask_model, layerName=selected_layer)
                     cam = gcam.compute_heatmap(array, upsample_size=(384,384))
-                #print(cam.tolist())
                 response = jsonify(cam.tolist())
                 header = response.headers
                 header['Access-Control-Allow-Origin'] = '*'
-                #print(response)
                 return response  
+                
+                #else that means x and y contains only 1 value for each so it's a singel point selection.
+                # same as before but for only 1 point.
             else:
                 for i in range(0,len(xval)):
                     xval[i]=int(float(xval[i]))
@@ -217,43 +223,34 @@ def change():
 
                 with tf.device("/cpu:0"):
 
-                    gcam = GradCAM(model=mask_model, layerName=selected_layer)#"aggregation_conv")#"center_block1_relu")
+                    gcam = GradCAM(model=mask_model, layerName=selected_layer)
                     cam = gcam.compute_heatmap(array, upsample_size=(384,384))
-                #print(cam.tolist())
                 response = jsonify(cam.tolist())
                 header = response.headers
                 header['Access-Control-Allow-Origin'] = '*'
-                #print(response)
                 return response                  
 
         else:
-
+        
+# change on the dropdown menu.
             image_path= "testimg/" + image.filename
             img = tf.keras.preprocessing.image.load_img(image_path, target_size=(384, 384))
             array = tf.keras.preprocessing.image.img_to_array(img)
-            # We add a dimension to transform our array into a "batch"
-            # of size (1, 299, 299, 3)
             array = preprocess_input(np.expand_dims(array, axis=0))
             pred = model.predict(array)
-            #print(type(pred[0].argmax(-1).tolist()))
             feat_num= pred.shape[3]
             a_list = list(range(0, feat_num))
             feat_names=['background', 'cap','ring', 'stipe', 'gills', 'volva', 'mycelium']
             class_idx = int(request.form.get('item'))
-            # get grad-cam for class with idx 1
-            # for that we need to generate a mask that masks out all pixels from other classes (in the interactive tool, we would like users to also be able to define this mask, not only derive it from the class)
             mask = tf_explain.get_mask_for_class(model, array, class_idx=class_idx)
-            # and we create an explainable model from the segmentation model
             mask_model = tf_explain.get_explainable_model(model, mask=mask)
 
             with tf.device("/cpu:0"):
-                gcam = GradCAM(model=mask_model, layerName=selected_layer)#"aggregation_conv")#"center_block1_relu")
+                gcam = GradCAM(model=mask_model, layerName=selected_layer)
                 cam = gcam.compute_heatmap(array, upsample_size=(384,384), classIdx=class_idx)
-            #print(cam.tolist())
             response = jsonify(cam.tolist())
             header = response.headers
             header['Access-Control-Allow-Origin'] = '*'
-            #print(response)
             return response
 
     # otherwise handle the GET request
