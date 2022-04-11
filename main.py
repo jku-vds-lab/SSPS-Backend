@@ -1,19 +1,11 @@
 #import needed libraries 
 from typing import Any
-from unicodedata import category
-from flask import Flask, request, jsonify
-from flask.sessions import NullSession
-import matplotlib
-import matplotlib.pyplot as plt
-from werkzeug.wrappers import response
+from flask import Flask, request, jsonify, session
 import tensorflow as tf
 import numpy as np
-import pandas as pd
 import tf_explain
-import importlib
 from tensorflow.keras.models import Model
 import cv2
-import json
 
 
 # Class GradCAM
@@ -98,10 +90,30 @@ for layer in layer_names:
         conv_layers.append(layer)
         
 preprocess_input = tf.keras.applications.vgg16.preprocess_input
-pred:any
+# pred:any
 
+import base64
+from io import BytesIO
 #start the application 
 app = Flask(__name__)
+# Set the secret key to some random bytes. Keep this really secret!
+app.secret_key = b'hduvc892+#fvjy64'
+
+@app.route('/save', methods=['GET'])
+def save_ressource():
+    an_object = {'key': 'value'}
+    session['an_object'] = an_object
+    return 'sucees'
+
+@app.route('/read', methods=['GET'])
+def read_ressource():
+    an_object = session.get('an_object')
+    if an_object:
+        return 'sucess'
+    else:
+        return 'failure'
+
+
 @app.route('/form-example', methods=['GET', 'POST'])
 def form_example():
     # handle the POST request
@@ -112,17 +124,21 @@ def form_example():
         with tf.device("/cpu:0"):
 # getting the image from the front end and open in locally in the back-end
             img = tf.keras.preprocessing.image.load_img(image_path, target_size=(384, 384))
-            array = tf.keras.preprocessing.image.img_to_array(img)
+            buffered = BytesIO()
+            img.save(buffered, format="JPEG")
+            img_str = base64.b64encode(buffered.getvalue())
+
+            img_array = tf.keras.preprocessing.image.img_to_array(img)
             # We add a dimension to transform our array into a "batch"
             # of size (1, 299, 299, 3)
-            array = preprocess_input(np.expand_dims(array, axis=0))
+            array = preprocess_input(np.expand_dims(img_array, axis=0))
             pred = model.predict(array)
             MaxElement = np.amax(pred[0].argmax(-1))
             #getting the number of predicted classes for the input image to be added in the dropdown and for the heatmap.
             Category_Elements = []
             for element in range(MaxElement+1):
                 Category_Elements.append(pred_list[element])
-            dic= {'data': pred[0].argmax(-1).tolist(), 'elements':Category_Elements }
+            dic= {'data': pred[0].argmax(-1).tolist(), 'elements': Category_Elements, 'inputImg': img_str.decode("utf-8") }
             response = jsonify(dic)
             header = response.headers
             header['Access-Control-Allow-Origin'] = '*'
@@ -134,6 +150,7 @@ def form_example():
     header = response.headers
     header['Access-Control-Allow-Origin'] = '*'
     return response
+
 # on change API to uptade Grad-cam
 @app.route('/change', methods=['GET', 'POST'])
 def change():

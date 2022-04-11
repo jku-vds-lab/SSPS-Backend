@@ -40,7 +40,7 @@ def get_mask_for_class(model, image, class_idx=0): # return mask of input image,
     seg_mask = model.predict(image)[0].argmax(-1)
     mask = seg_mask == class_idx
     return mask[np.newaxis,:,:,np.newaxis]
-        
+
 def get_explainable_model(model, mask=None, class_idx=0, out_shape=None, output_layer=-1): # specify output layer such that the output before the softmax layer is considered
 
     if out_shape is None:
